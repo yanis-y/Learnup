@@ -4,6 +4,13 @@ from . import views
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
 
+    path('register/', views.register_view, name='register'),
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
+
+    path('settings/', views.user_settings, name='user_settings'),
+    path('how-it-works/', views.how_it_works, name='how_it_works'),
+
     path('themes/new/', views.theme_create, name='theme_create'),
     path('themes/<int:theme_id>/', views.theme_detail, name='theme_detail'),
     path('themes/<int:theme_id>/edit/', views.theme_edit, name='theme_edit'),

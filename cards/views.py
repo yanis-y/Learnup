@@ -3,26 +3,101 @@ import datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib import messages
+from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.urls import reverse
-from .models import Theme, Card, ReviewLog
+from .models import Theme, Card, ReviewLog, UserProfile
 
 
-def _get_streak():
+# ── Auth ──────────────────────────────────────────────────────────────────────
+
+def register_view(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        password2 = request.POST.get('password2', '')
+        if not username or not password:
+            messages.error(request, 'Identifiant et mot de passe requis.')
+        elif password != password2:
+            messages.error(request, 'Les mots de passe ne correspondent pas.')
+        elif len(password) < 6:
+            messages.error(request, 'Le mot de passe doit faire au moins 6 caractères.')
+        elif User.objects.filter(username=username).exists():
+            messages.error(request, 'Cet identifiant est déjà pris.')
+        else:
+            user = User.objects.create_user(username=username, password=password)
+            login(request, user)
+            messages.success(request, f'Bienvenue, {username} !')
+            return redirect('dashboard')
+    return render(request, 'auth/register.html')
+
+
+def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        user = authenticate(request, username=username, password=password)
+        if user:
+            login(request, user)
+            return redirect(request.GET.get('next', 'dashboard'))
+        messages.error(request, 'Identifiant ou mot de passe incorrect.')
+    return render(request, 'auth/login.html')
+
+
+def logout_view(request):
+    logout(request)
+    return redirect('login')
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _get_streak(user):
     today = datetime.date.today()
     d = today
-    if not ReviewLog.objects.filter(reviewed_at=today).exists():
+    if not ReviewLog.objects.filter(card__theme__user=user, reviewed_at=today).exists():
         d = today - datetime.timedelta(days=1)
     streak = 0
-    while ReviewLog.objects.filter(reviewed_at=d).exists():
+    while ReviewLog.objects.filter(card__theme__user=user, reviewed_at=d).exists():
         streak += 1
         d -= datetime.timedelta(days=1)
     return streak
 
 
+def _get_multiplier(user):
+    try:
+        return user.profile.interval_multiplier
+    except Exception:
+        return 1.0
+
+
+def _preview_intervals(multiplier, n=6):
+    intervals = []
+    interval = 0
+    ef = 2.5
+    for rep in range(n):
+        if rep == 0:
+            raw = 1
+        elif rep == 1:
+            raw = 6
+        else:
+            raw = round(interval * ef)
+        interval = max(1, round(raw * multiplier))
+        intervals.append(interval)
+    return intervals
+
+
+# ── Dashboard ─────────────────────────────────────────────────────────────────
+
+@login_required
 def dashboard(request):
     today = datetime.date.today()
-    themes = list(Theme.objects.annotate(
+    themes = list(Theme.objects.filter(user=request.user).annotate(
         total=Count('cards'),
         due=Count('cards', filter=Q(cards__due_date__lte=today)),
         mastered=Count('cards', filter=Q(cards__interval__gte=21)),
@@ -30,29 +105,24 @@ def dashboard(request):
     for t in themes:
         t.mastery_pct = round((t.mastered / t.total * 100) if t.total > 0 else 0)
 
-    total_due      = Card.objects.filter(due_date__lte=today).count()
-    total_cards    = Card.objects.count()
-    total_mastered = Card.objects.filter(interval__gte=21).count()
-    total_reviews  = ReviewLog.objects.count()
-    streak         = _get_streak()
+    total_due      = Card.objects.filter(theme__user=request.user, due_date__lte=today).count()
+    total_cards    = Card.objects.filter(theme__user=request.user).count()
+    total_mastered = Card.objects.filter(theme__user=request.user, interval__gte=21).count()
+    total_reviews  = ReviewLog.objects.filter(card__theme__user=request.user).count()
+    streak         = _get_streak(request.user)
 
     thirty_days_ago = today - datetime.timedelta(days=29)
     logs = (ReviewLog.objects
-            .filter(reviewed_at__gte=thirty_days_ago)
+            .filter(card__theme__user=request.user, reviewed_at__gte=thirty_days_ago)
             .values('reviewed_at')
             .annotate(count=Count('id')))
     review_counts = {str(log['reviewed_at']): log['count'] for log in logs}
-
     max_count = max(review_counts.values(), default=1) or 1
     chart_data = []
     for i in range(30):
         d = thirty_days_ago + datetime.timedelta(days=i)
         count = review_counts.get(str(d), 0)
-        chart_data.append({
-            'date': str(d),
-            'count': count,
-            'height_pct': round((count / max_count) * 100),
-        })
+        chart_data.append({'date': str(d), 'count': count, 'height_pct': round((count / max_count) * 100)})
 
     return render(request, 'cards/dashboard.html', {
         'themes': themes,
@@ -66,42 +136,44 @@ def dashboard(request):
     })
 
 
+# ── Themes ────────────────────────────────────────────────────────────────────
+
+@login_required
 def theme_create(request):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         if not name:
             messages.error(request, 'Le nom du thème est requis.')
             return render(request, 'cards/theme_form.html', {'title': 'Nouveau thème', 'name': ''})
-        if Theme.objects.filter(name=name).exists():
+        if Theme.objects.filter(user=request.user, name=name).exists():
             messages.error(request, 'Un thème avec ce nom existe déjà.')
             return render(request, 'cards/theme_form.html', {'title': 'Nouveau thème', 'name': name})
-        Theme.objects.create(name=name)
+        Theme.objects.create(user=request.user, name=name)
         messages.success(request, f'Thème « {name} » créé.')
         return redirect('dashboard')
     return render(request, 'cards/theme_form.html', {'title': 'Nouveau thème', 'name': ''})
 
 
+@login_required
 def theme_detail(request, theme_id):
-    theme = get_object_or_404(Theme, id=theme_id)
+    theme = get_object_or_404(Theme, id=theme_id, user=request.user)
     today = datetime.date.today()
     cards = theme.cards.all()
     due_count = cards.filter(due_date__lte=today).count()
     return render(request, 'cards/theme_detail.html', {
-        'theme': theme,
-        'cards': cards,
-        'due_count': due_count,
-        'today': today,
+        'theme': theme, 'cards': cards, 'due_count': due_count, 'today': today,
     })
 
 
+@login_required
 def theme_edit(request, theme_id):
-    theme = get_object_or_404(Theme, id=theme_id)
+    theme = get_object_or_404(Theme, id=theme_id, user=request.user)
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         if not name:
             messages.error(request, 'Le nom du thème est requis.')
             return render(request, 'cards/theme_form.html', {'title': 'Modifier le thème', 'theme': theme, 'name': theme.name})
-        if Theme.objects.filter(name=name).exclude(id=theme_id).exists():
+        if Theme.objects.filter(user=request.user, name=name).exclude(id=theme_id).exists():
             messages.error(request, 'Un thème avec ce nom existe déjà.')
             return render(request, 'cards/theme_form.html', {'title': 'Modifier le thème', 'theme': theme, 'name': name})
         theme.name = name
@@ -111,8 +183,9 @@ def theme_edit(request, theme_id):
     return render(request, 'cards/theme_form.html', {'title': 'Modifier le thème', 'theme': theme, 'name': theme.name})
 
 
+@login_required
 def theme_delete(request, theme_id):
-    theme = get_object_or_404(Theme, id=theme_id)
+    theme = get_object_or_404(Theme, id=theme_id, user=request.user)
     if request.method == 'POST':
         card_count = theme.cards.count()
         name = theme.name
@@ -127,16 +200,18 @@ def theme_delete(request, theme_id):
     })
 
 
+# ── Cards ─────────────────────────────────────────────────────────────────────
+
+@login_required
 def card_create(request, theme_id):
-    theme = get_object_or_404(Theme, id=theme_id)
+    theme = get_object_or_404(Theme, id=theme_id, user=request.user)
     if request.method == 'POST':
         question = request.POST.get('question', '').strip()
         answer = request.POST.get('answer', '').strip()
         if not question or not answer:
             messages.error(request, 'La question et la réponse sont requises.')
             return render(request, 'cards/card_form.html', {
-                'title': 'Nouvelle carte', 'theme': theme,
-                'question': question, 'answer': answer,
+                'title': 'Nouvelle carte', 'theme': theme, 'question': question, 'answer': answer,
             })
         Card.objects.create(theme=theme, question=question, answer=answer)
         if request.POST.get('add_another'):
@@ -149,8 +224,9 @@ def card_create(request, theme_id):
     })
 
 
+@login_required
 def card_edit(request, card_id):
-    card = get_object_or_404(Card, id=card_id)
+    card = get_object_or_404(Card, id=card_id, theme__user=request.user)
     if request.method == 'POST':
         question = request.POST.get('question', '').strip()
         answer = request.POST.get('answer', '').strip()
@@ -171,8 +247,9 @@ def card_edit(request, card_id):
     })
 
 
+@login_required
 def card_delete(request, card_id):
-    card = get_object_or_404(Card, id=card_id)
+    card = get_object_or_404(Card, id=card_id, theme__user=request.user)
     theme_id = card.theme_id
     if request.method == 'POST':
         card.delete()
@@ -186,9 +263,9 @@ def card_delete(request, card_id):
     })
 
 
+@login_required
 def card_reset(request, card_id):
-    """Reset SM-2 stats so the card is due today and starts fresh."""
-    card = get_object_or_404(Card, id=card_id)
+    card = get_object_or_404(Card, id=card_id, theme__user=request.user)
     if request.method == 'POST':
         card.repetitions = 0
         card.easiness_factor = 2.5
@@ -199,24 +276,25 @@ def card_reset(request, card_id):
     return redirect('theme_detail', theme_id=card.theme_id)
 
 
+# ── Review ────────────────────────────────────────────────────────────────────
+
+@login_required
 def review_start(request, theme_id=None):
     today = datetime.date.today()
     force = request.GET.get('force') == '1'
 
     if theme_id:
-        theme = get_object_or_404(Theme, id=theme_id)
-        cards_qs = theme.cards.all() if force else theme.cards.filter(due_date__lte=today)
+        theme = get_object_or_404(Theme, id=theme_id, user=request.user)
+        qs = theme.cards.all() if force else theme.cards.filter(due_date__lte=today)
     else:
-        theme = None
-        cards_qs = Card.objects.all() if force else Card.objects.filter(due_date__lte=today)
+        qs = Card.objects.filter(theme__user=request.user)
+        if not force:
+            qs = qs.filter(due_date__lte=today)
 
-    if force:
-        card_ids = list(cards_qs.order_by('due_date').values_list('id', flat=True))
-    else:
-        card_ids = list(cards_qs.order_by('?').values_list('id', flat=True))
+    card_ids = list(qs.order_by('due_date' if force else '?').values_list('id', flat=True))
 
     if not card_ids:
-        messages.info(request, 'Aucune carte dans cette collection.')
+        messages.info(request, 'Aucune carte à réviser pour le moment.')
         return redirect('theme_detail', theme_id=theme_id) if theme_id else redirect('dashboard')
 
     request.session['review_queue'] = card_ids
@@ -224,32 +302,29 @@ def review_start(request, theme_id=None):
     request.session['review_stats'] = {'total': len(card_ids), 'fail': 0, 'hard': 0, 'easy': 0}
     request.session['review_theme_id'] = theme_id
     request.session['show_answer'] = False
-
     return redirect('review_session')
 
 
+@login_required
 def review_session(request):
     queue = request.session.get('review_queue')
     if not queue:
         return redirect('dashboard')
-
     index = request.session.get('review_index', 0)
     if index >= len(queue):
         return redirect('review_complete')
 
     if request.method == 'POST':
         action = request.POST.get('action')
-
         if action == 'show':
             request.session['show_answer'] = True
             return redirect('review_session')
-
         if action == 'rate':
             quality = int(request.POST.get('quality', 2))
             if quality not in (2, 3, 5):
                 quality = 2
-            card = get_object_or_404(Card, id=queue[index])
-            card.apply_sm2(quality)
+            card = get_object_or_404(Card, id=queue[index], theme__user=request.user)
+            card.apply_sm2(quality, multiplier=_get_multiplier(request.user))
             ReviewLog.objects.create(card=card, quality=quality)
 
             stats = request.session['review_stats']
@@ -268,17 +343,16 @@ def review_session(request):
     card = get_object_or_404(Card, id=queue[index])
     show_answer = request.session.get('show_answer', False)
     total = len(queue)
-    progress_pct = round((index / total) * 100) if total else 0
-
     return render(request, 'cards/review_session.html', {
         'card': card,
         'show_answer': show_answer,
         'current': index + 1,
         'total': total,
-        'progress_pct': progress_pct,
+        'progress_pct': round((index / total) * 100) if total else 0,
     })
 
 
+@login_required
 def review_complete(request):
     stats = request.session.get('review_stats', {'total': 0, 'fail': 0, 'hard': 0, 'easy': 0})
     theme_id = request.session.get('review_theme_id')
@@ -287,8 +361,41 @@ def review_complete(request):
     return render(request, 'cards/review_complete.html', {'stats': stats, 'theme_id': theme_id})
 
 
+# ── Settings ──────────────────────────────────────────────────────────────────
+
+@login_required
+def user_settings(request):
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    if request.method == 'POST':
+        try:
+            m = float(request.POST.get('interval_multiplier', 1.0))
+            profile.interval_multiplier = max(0.3, min(3.0, round(m, 1)))
+            profile.save()
+            messages.success(request, 'Réglages sauvegardés.')
+        except ValueError:
+            messages.error(request, 'Valeur invalide.')
+        return redirect('user_settings')
+
+    preview = _preview_intervals(profile.interval_multiplier)
+    return render(request, 'cards/settings.html', {'profile': profile, 'preview': preview})
+
+
+# ── How it works ──────────────────────────────────────────────────────────────
+
+def how_it_works(request):
+    examples = [
+        {'multiplier': 0.5, 'label': 'Intensif', 'intervals': _preview_intervals(0.5)},
+        {'multiplier': 1.0, 'label': 'Normal',   'intervals': _preview_intervals(1.0)},
+        {'multiplier': 2.0, 'label': 'Relax',    'intervals': _preview_intervals(2.0)},
+    ]
+    return render(request, 'cards/how_it_works.html', {'examples': examples})
+
+
+# ── Export / Import ───────────────────────────────────────────────────────────
+
+@login_required
 def export_data(request):
-    themes = Theme.objects.prefetch_related('cards').all()
+    themes = Theme.objects.filter(user=request.user).prefetch_related('cards').all()
     data = {
         'export_date': str(datetime.date.today()),
         'version': '1.0',
@@ -314,10 +421,11 @@ def export_data(request):
         json.dumps(data, indent=2, ensure_ascii=False),
         content_type='application/json; charset=utf-8',
     )
-    response['Content-Disposition'] = f'attachment; filename="flashcards_{datetime.date.today()}.json"'
+    response['Content-Disposition'] = f'attachment; filename="learnup_{datetime.date.today()}.json"'
     return response
 
 
+@login_required
 def import_data(request):
     if request.method != 'POST':
         return redirect('dashboard')
@@ -329,7 +437,7 @@ def import_data(request):
         data = json.loads(file.read().decode('utf-8'))
         created_themes = created_cards = 0
         for theme_data in data.get('themes', []):
-            theme, created = Theme.objects.get_or_create(name=theme_data['name'])
+            theme, created = Theme.objects.get_or_create(user=request.user, name=theme_data['name'])
             if created:
                 created_themes += 1
             for c in theme_data.get('cards', []):

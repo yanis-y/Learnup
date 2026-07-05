@@ -11,9 +11,19 @@
   <nav class="navbar">
     <a class="navbar-brand" href="{% url 'dashboard' %}">Learnup</a>
     <ul class="navbar-nav">
+      {% if user.is_authenticated %}
       <li><a href="{% url 'dashboard' %}">Accueil</a></li>
       <li><a href="{% url 'theme_create' %}">+ Thème</a></li>
+      <li><a href="{% url 'how_it_works' %}">Comment ça marche</a></li>
       <li><a href="{% url 'export_data' %}">Exporter</a></li>
+      <li class="navbar-sep"></li>
+      <li><a href="{% url 'user_settings' %}" class="navbar-user">{{ user.username }}</a></li>
+      <li><a href="{% url 'logout' %}" class="navbar-logout">Déconnexion</a></li>
+      {% else %}
+      <li><a href="{% url 'how_it_works' %}">Comment ça marche</a></li>
+      <li><a href="{% url 'login' %}">Connexion</a></li>
+      <li><a href="{% url 'register' %}" class="btn btn-primary btn-sm">Créer un compte</a></li>
+      {% endif %}
     </ul>
   </nav>
 
@@ -28,6 +38,7 @@
 
     {% block content %}{% endblock %}
   </div>
+
   {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block title %}Réglages — Learnup{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{% url 'dashboard' %}">Accueil</a>
+  <span>/</span>
+  <span>Réglages</span>
+</div>
+
+<div style="max-width:600px;">
+  <h1 class="section-title" style="margin-bottom:1.5rem;">Réglages du compte</h1>
+
+  <!-- Rythme -->
+  <div class="card">
+    <h2 style="font-size:1rem;font-weight:600;margin-bottom:0.35rem;">Rythme d'apprentissage</h2>
+    <p class="text-muted" style="font-size:0.85rem;margin-bottom:1.25rem;">
+      Ce réglage multiplie tous les intervalles calculés par SM-2.
+      En dessous de 1.0 vous révisez plus souvent, au-dessus moins souvent.
+    </p>
+
+    <form method="post" id="settings-form">
+      {% csrf_token %}
+
+      <div class="rhythm-presets">
+        <button type="button" class="preset-btn" data-val="0.5">
+          <span class="preset-name">Intensif</span>
+          <span class="preset-desc">Révisions 2× plus fréquentes</span>
+        </button>
+        <button type="button" class="preset-btn" data-val="1.0">
+          <span class="preset-name">Normal</span>
+          <span class="preset-desc">SM-2 standard</span>
+        </button>
+        <button type="button" class="preset-btn" data-val="2.0">
+          <span class="preset-name">Relax</span>
+          <span class="preset-desc">Révisions 2× plus espacées</span>
+        </button>
+      </div>
+
+      <div class="slider-row">
+        <span class="slider-label">0.3×</span>
+        <input type="range" id="multiplier-slider" name="interval_multiplier"
+               min="0.3" max="3.0" step="0.1"
+               value="{{ profile.interval_multiplier }}"
+               style="flex:1;">
+        <span class="slider-label">3.0×</span>
+        <span class="slider-value" id="slider-val">{{ profile.interval_multiplier }}×</span>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="margin-top:1rem;">Sauvegarder</button>
+    </form>
+  </div>
+
+  <!-- Aperçu des intervalles -->
+  <div class="card">
+    <h2 style="font-size:1rem;font-weight:600;margin-bottom:0.75rem;">
+      Aperçu des intervalles avec ce réglage
+    </h2>
+    <p class="text-muted" style="font-size:0.82rem;margin-bottom:1rem;">
+      En répondant "Validé" à chaque fois, une carte sera revue dans :
+    </p>
+    <div class="intervals-preview" id="intervals-preview">
+      {% for days in preview %}
+      <div class="interval-step">
+        <div class="interval-rep">Révision {{ forloop.counter }}</div>
+        <div class="interval-days" data-base="{{ days }}">+{{ days }}j</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const slider = document.getElementById('multiplier-slider');
+const valLabel = document.getElementById('slider-val');
+const presets = document.querySelectorAll('.preset-btn');
+const baseDays = [{% for d in preview %}{{ d }},{% endfor %}];
+
+// Intervalles de base (multiplier=1.0) pour recalcul dynamique
+const baseIntervals = [1, 6, 15, 38, 96, 240]; // SM-2 EF=2.5 standard
+
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+function computeIntervals(m) {
+  const ef = 2.5;
+  const result = [];
+  let interval = 0;
+  for (let rep = 0; rep < 6; rep++) {
+    let raw;
+    if (rep === 0) raw = 1;
+    else if (rep === 1) raw = 6;
+    else raw = Math.round(interval * ef);
+    interval = Math.max(1, Math.round(raw * m));
+    result.push(interval);
+  }
+  return result;
+}
+
+function updatePreview(m) {
+  const intervals = computeIntervals(m);
+  document.querySelectorAll('.interval-days').forEach((el, i) => {
+    el.textContent = '+' + intervals[i] + 'j';
+  });
+}
+
+function updateActivePreset(m) {
+  presets.forEach(btn => {
+    btn.classList.toggle('active', parseFloat(btn.dataset.val) === m);
+  });
+}
+
+slider.addEventListener('input', () => {
+  const m = parseFloat(slider.value);
+  valLabel.textContent = m.toFixed(1) + '×';
+  updatePreview(m);
+  updateActivePreset(m);
+});
+
+presets.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const m = parseFloat(btn.dataset.val);
+    slider.value = m;
+    valLabel.textContent = m.toFixed(1) + '×';
+    updatePreview(m);
+    updateActivePreset(m);
+  });
+});
+
+// Init
+updateActivePreset(parseFloat(slider.value));
+</script>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% block title %}Comment ça marche — Learnup{% endblock %}
+
+{% block content %}
+<div style="max-width:720px;margin:0 auto;">
+
+  <h1 style="font-size:1.6rem;font-weight:700;margin-bottom:0.5rem;">Comment fonctionne Learnup ?</h1>
+  <p class="text-muted" style="margin-bottom:2rem;font-size:0.95rem;">
+    Learnup utilise la <strong style="color:var(--text);">répétition espacée</strong> — la méthode scientifiquement la plus efficace pour mémoriser durablement.
+  </p>
+
+  <!-- Principe -->
+  <div class="hiw-section">
+    <h2 class="hiw-title">Le principe</h2>
+    <p>
+      Chaque fois que vous révisez une carte, votre cerveau la reconsolide.
+      Plus vous attendez longtemps avant de la revoir (sans oublier), plus elle s'ancre profondément.
+      L'idée : revoir <em>juste avant</em> d'oublier, pas trop tôt, pas trop tard.
+    </p>
+    <div class="hiw-highlight">
+      Réviser 100 cartes 1 fois = surface. Réviser 20 cartes 5 fois au bon moment = mémoire à long terme.
+    </div>
+  </div>
+
+  <!-- Les 3 boutons -->
+  <div class="hiw-section">
+    <h2 class="hiw-title">Les 3 boutons</h2>
+    <p style="margin-bottom:1rem;">Après avoir vu la réponse, vous évaluez honnêtement :</p>
+    <div class="hiw-buttons">
+      <div class="hiw-btn hiw-btn-fail">
+        <div class="hiw-btn-key">1</div>
+        <div class="hiw-btn-name">Echec</div>
+        <div class="hiw-btn-desc">Je n'ai pas su répondre.<br>La carte revient demain, EF diminue.</div>
+      </div>
+      <div class="hiw-btn hiw-btn-hard">
+        <div class="hiw-btn-key">2</div>
+        <div class="hiw-btn-name">Approximatif</div>
+        <div class="hiw-btn-desc">J'ai répondu avec difficulté.<br>Intervalle court, EF diminue légèrement.</div>
+      </div>
+      <div class="hiw-btn hiw-btn-easy">
+        <div class="hiw-btn-key">3</div>
+        <div class="hiw-btn-name">Validé</div>
+        <div class="hiw-btn-desc">J'ai répondu sans hésiter.<br>Long intervalle, EF augmente.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Intervalles -->
+  <div class="hiw-section">
+    <h2 class="hiw-title">L'algorithme SM-2 — intervalles</h2>
+    <p style="margin-bottom:1rem;">
+      Chaque carte a un <strong style="color:var(--text);">facteur de facilité (EF)</strong> qui commence à 2.5 et s'adapte à vos résultats.
+      Plus il est élevé, plus les intervalles s'allongent vite.
+    </p>
+
+    <div class="hiw-table-wrap">
+      <table class="hiw-table">
+        <thead>
+          <tr>
+            <th>Révision réussie n°</th>
+            <th>Intervalle (EF=2.5)</th>
+            <th>Prochain rendez-vous</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1ère</td><td>1 jour</td><td>Demain</td></tr>
+          <tr><td>2ème</td><td>6 jours</td><td>Dans une semaine</td></tr>
+          <tr><td>3ème</td><td>15 jours</td><td>Dans deux semaines</td></tr>
+          <tr><td>4ème</td><td>38 jours</td><td>Dans un mois</td></tr>
+          <tr><td>5ème</td><td>96 jours</td><td>Dans trois mois</td></tr>
+          <tr><td>6ème</td><td>~8 mois</td><td>…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-muted);">
+      En cas d'<strong style="color:var(--danger);">Echec</strong>, les répétitions sont remises à zéro et la carte revient dans 1 jour.
+      Le facteur EF diminue, donc les futurs intervalles seront plus courts.
+    </p>
+  </div>
+
+  <!-- Facteur EF -->
+  <div class="hiw-section">
+    <h2 class="hiw-title">Le facteur de facilité (EF)</h2>
+    <div class="hiw-ef-grid">
+      <div class="hiw-ef-box">
+        <div class="hiw-ef-val" style="color:var(--success);">+0.10</div>
+        <div class="hiw-ef-label">Validé (q=5)</div>
+      </div>
+      <div class="hiw-ef-box">
+        <div class="hiw-ef-val" style="color:var(--warning);">−0.14</div>
+        <div class="hiw-ef-label">Approximatif (q=3)</div>
+      </div>
+      <div class="hiw-ef-box">
+        <div class="hiw-ef-val" style="color:var(--danger);">−0.32</div>
+        <div class="hiw-ef-label">Echec (q=2)</div>
+      </div>
+    </div>
+    <p style="font-size:0.85rem;color:var(--text-muted);margin-top:0.75rem;">
+      L'EF ne descend jamais en dessous de <strong style="color:var(--text);">1.3</strong>.
+      Une carte très difficile sera révisée tous les 1–2 jours au minimum même après beaucoup d'échecs.
+    </p>
+  </div>
+
+  <!-- Réglage rythme -->
+  <div class="hiw-section">
+    <h2 class="hiw-title">Le réglage "Rythme"</h2>
+    <p style="margin-bottom:1rem;">
+      Dans <a href="{% if user.is_authenticated %}{% url 'user_settings' %}{% else %}{% url 'register' %}{% endif %}">vos réglages</a>,
+      un multiplicateur global ajuste tous les intervalles calculés.
+    </p>
+
+    <div class="hiw-table-wrap">
+      <table class="hiw-table">
+        <thead>
+          <tr>
+            <th>Mode</th>
+            <th>Multiplicateur</th>
+            {% for ex in examples %}<th>{{ ex.label }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in "012345" %}
+          {% with idx=forloop.counter0 %}
+          <tr>
+            <td>Révision {{ forloop.counter }}</td>
+            <td></td>
+            {% for ex in examples %}<td>+{{ ex.intervals|slice:idx|last }}j</td>{% endfor %}
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-muted);">
+      Le mode <strong style="color:var(--text);">Intensif</strong> est idéal pour un apprentissage actif (examen proche).
+      Le mode <strong style="color:var(--text);">Relax</strong> convient à l'entretien d'une langue que vous pratiquez déjà.
+    </p>
+  </div>
+
+  <!-- Maîtrise -->
+  <div class="hiw-section">
+    <h2 class="hiw-title">Cartes "maîtrisées"</h2>
+    <p>
+      Une carte est considérée <strong style="color:var(--success);">maîtrisée</strong> lorsque son intervalle dépasse
+      <strong style="color:var(--text);">21 jours</strong>. C'est le seuil affiché dans le tableau de bord.
+      La carte continue à être révisée, mais de plus en plus rarement.
+    </p>
+  </div>
+
+  {% if not user.is_authenticated %}
+  <div style="text-align:center;margin-top:2.5rem;">
+    <a href="{% url 'register' %}" class="btn btn-primary btn-lg">Commencer maintenant</a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

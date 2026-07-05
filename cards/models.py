@@ -1,13 +1,32 @@
 import datetime
 from django.db import models
+from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    interval_multiplier = models.FloatField(default=1.0)
+
+    def __str__(self):
+        return f"Profil de {self.user.username}"
+
+
+@receiver(post_save, sender=User)
+def create_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.get_or_create(user=instance)
 
 
 class Theme(models.Model):
-    name = models.CharField(max_length=200, unique=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='themes', null=True, blank=True)
+    name = models.CharField(max_length=200)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['name']
+        unique_together = [('user', 'name')]
 
     def __str__(self):
         return self.name
@@ -30,7 +49,7 @@ class Card(models.Model):
     def __str__(self):
         return self.question[:60]
 
-    def apply_sm2(self, quality):
+    def apply_sm2(self, quality, multiplier=1.0):
         """SM-2 algorithm. quality: 2 (fail), 3 (hard), 5 (easy)."""
         q = quality
 
@@ -50,6 +69,7 @@ class Card(models.Model):
         if self.easiness_factor < 1.3:
             self.easiness_factor = 1.3
 
+        self.interval = max(1, round(self.interval * multiplier))
         self.due_date = datetime.date.today() + datetime.timedelta(days=self.interval)
         self.save()
 
