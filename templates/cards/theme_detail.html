@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}{{ theme.name }} — Flashcards{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{% url 'dashboard' %}">Accueil</a>
+  <span>/</span>
+  <span>{{ theme.name }}</span>
+</div>
+
+<div class="section-header">
+  <h1 class="section-title">{{ theme.name }}</h1>
+  <div class="d-flex gap-1">
+    <a href="{% url 'theme_edit' theme.id %}" class="btn btn-outline btn-sm">Renommer</a>
+    <a href="{% url 'theme_delete' theme.id %}" class="btn btn-danger btn-sm">Supprimer</a>
+  </div>
+</div>
+
+<div class="d-flex gap-2 align-items-center" style="margin-bottom:1.25rem;flex-wrap:wrap;">
+  <span class="text-muted">{{ cards|length }} carte{% if cards|length > 1 %}s{% endif %}</span>
+  {% if due_count > 0 %}
+  <a href="{% url 'review_start_theme' theme.id %}" class="btn btn-primary">
+    Réviser ({{ due_count }} carte{% if due_count > 1 %}s{% endif %})
+  </a>
+  {% else %}
+  <span class="text-success">Tout est à jour !</span>
+  {% endif %}
+  <a href="{% url 'card_create' theme.id %}" class="btn btn-outline">+ Ajouter une carte</a>
+</div>
+
+{% if cards %}
+<div class="card-list">
+  {% for card in cards %}
+  <div class="flash-card {% if card.due_date <= today %}flash-card-due{% endif %}">
+    <div class="flash-card-content">
+      <div class="flash-card-question">{{ card.question }}</div>
+      <div class="flash-card-answer">{{ card.answer }}</div>
+      <div class="flash-card-meta">
+        Prochaine révision : {{ card.due_date }}
+        &middot; Répétitions : {{ card.repetitions }}
+        &middot; EF : {{ card.easiness_factor|floatformat:2 }}
+        &middot; Intervalle : {{ card.interval }}j
+      </div>
+    </div>
+    <div class="flash-card-actions">
+      <a href="{% url 'card_edit' card.id %}" class="btn btn-outline btn-sm">Modifier</a>
+      <form method="post" action="{% url 'card_reset' card.id %}" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline btn-sm"
+                onclick="return confirm('Réinitialiser la progression de cette carte ?')">Reset</button>
+      </form>
+      <a href="{% url 'card_delete' card.id %}" class="btn btn-danger btn-sm">X</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-state-icon">[ ]</div>
+  <p>Aucune carte dans ce thème.</p>
+  <a href="{% url 'card_create' theme.id %}" class="btn btn-primary">Ajouter la première carte</a>
+</div>
+{% endif %}
+{% endblock %}

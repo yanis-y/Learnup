@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} — Flashcards{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{% url 'dashboard' %}">Accueil</a>
+  <span>/</span>
+  <span>{{ title }}</span>
+</div>
+
+<div class="card" style="max-width:500px;">
+  <h1 class="card-title" style="margin-bottom:1.25rem;">{{ title }}</h1>
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-group">
+      <label for="name">Nom du thème</label>
+      <input type="text" id="name" name="name" value="{{ name }}" autofocus required maxlength="200"
+             placeholder="ex : Optique géométrique">
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Enregistrer</button>
+      {% if theme %}
+      <a href="{% url 'theme_detail' theme.id %}" class="btn btn-outline">Annuler</a>
+      {% else %}
+      <a href="{% url 'dashboard' %}" class="btn btn-outline">Annuler</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

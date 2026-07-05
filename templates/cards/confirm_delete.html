@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} — Flashcards{% endblock %}
+
+{% block content %}
+<div class="confirm-box">
+  <h2>{{ title }}</h2>
+  <p>Supprimer : <strong>{{ object_name }}</strong></p>
+  {% if warning %}
+  <p class="text-danger" style="font-size:0.9rem;">{{ warning }}</p>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <div class="btn-group">
+      <a href="{{ cancel_url }}" class="btn btn-outline">Annuler</a>
+      <button type="submit" class="btn btn-danger">Supprimer définitivement</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

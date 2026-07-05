@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Flashcards{% endblock %}</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+  <nav class="navbar">
+    <a class="navbar-brand" href="{% url 'dashboard' %}">Flashcards</a>
+    <ul class="navbar-nav">
+      <li><a href="{% url 'dashboard' %}">Accueil</a></li>
+      <li><a href="{% url 'theme_create' %}">+ Thème</a></li>
+      <li><a href="{% url 'export_data' %}">Exporter</a></li>
+    </ul>
+  </nav>
+
+  <div class="container">
+    {% if messages %}
+    <ul class="messages-list">
+      {% for message in messages %}
+      <li class="msg msg-{{ message.tags }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

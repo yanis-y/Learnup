@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Tableau de bord — Flashcards{% endblock %}
+
+{% block content %}
+<div class="section-header">
+  <h1 class="section-title">Tableau de bord</h1>
+  {% if total_due > 0 %}
+  <a href="{% url 'review_start' %}" class="btn btn-primary">Réviser tout ({{ total_due }})</a>
+  {% endif %}
+</div>
+
+<div class="dashboard-stats">
+  <div class="stat-card">
+    <div class="stat-card-number">{{ total_cards }}</div>
+    <div class="stat-card-label">Cartes au total</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-number {% if total_due > 0 %}text-danger{% else %}text-success{% endif %}">{{ total_due }}</div>
+    <div class="stat-card-label">À réviser aujourd'hui</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-number">{{ themes|length }}</div>
+    <div class="stat-card-label">Thèmes</div>
+  </div>
+</div>
+
+<div class="chart-container">
+  <div class="chart-title">Activité — 30 derniers jours</div>
+  <div class="chart-bars">
+    {% for day in chart_data %}
+    <div class="chart-bar-wrapper" title="{{ day.date }} : {{ day.count }} carte{% if day.count > 1 %}s{% endif %}">
+      <div class="chart-bar" style="height: {{ day.height_pct }}%"></div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="section-header">
+  <h2 class="section-title">Mes thèmes</h2>
+  <a href="{% url 'theme_create' %}" class="btn btn-outline">+ Nouveau thème</a>
+</div>
+
+{% if themes %}
+<div class="theme-grid">
+  {% for theme in themes %}
+  <a href="{% url 'theme_detail' theme.id %}" class="theme-card">
+    <div class="theme-card-name">{{ theme.name }}</div>
+    <div class="theme-card-stats">
+      <span>{{ theme.total }} carte{% if theme.total > 1 %}s{% endif %}</span>
+      <span class="due-badge {% if theme.due == 0 %}zero{% endif %}">
+        {{ theme.due }} à réviser
+      </span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-state-icon">[ ]</div>
+  <p>Aucun thème pour l'instant.</p>
+  <a href="{% url 'theme_create' %}" class="btn btn-primary">Créer mon premier thème</a>
+</div>
+{% endif %}
+
+<div class="import-section">
+  <h2 class="section-title" style="margin-bottom:0.75rem;">Importer des données</h2>
+  <form method="post" action="{% url 'import_data' %}" enctype="multipart/form-data" class="import-form">
+    {% csrf_token %}
+    <input type="file" name="file" accept=".json" required>
+    <button type="submit" class="btn btn-outline btn-sm">Importer JSON</button>
+  </form>
+  <p class="text-muted" style="font-size:0.8rem;margin-top:0.4rem;">
+    Fichier JSON exporté depuis cette application. Les thèmes existants sont conservés, les cartes sont ajoutées.
+  </p>
+</div>
+{% endblock %}

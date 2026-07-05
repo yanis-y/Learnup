@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Révision {{ current }}/{{ total }} — Flashcards{% endblock %}
+
+{% block content %}
+<div class="review-wrapper">
+  <div class="review-counter">Carte {{ current }} / {{ total }}</div>
+
+  <div class="progress-bar-container">
+    <div class="progress-bar" style="width: {{ progress_pct }}%"></div>
+  </div>
+
+  <div class="review-card" id="review-card">
+    <div class="review-question">{{ card.question }}</div>
+
+    {% if show_answer %}
+    <hr class="review-divider">
+    <div class="review-answer" id="answer-block">{{ card.answer }}</div>
+
+    <div class="review-actions">
+      <p class="text-muted" style="font-size:0.8rem;text-align:center;">
+        Raccourcis clavier : <kbd>1</kbd> Echec &nbsp; <kbd>2</kbd> Approximatif &nbsp; <kbd>3</kbd> Valide
+      </p>
+      <form method="post" id="rate-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="rate">
+        <input type="hidden" name="quality" id="quality-input" value="">
+        <div class="rating-buttons">
+          <button type="button" class="btn btn-danger" onclick="submitRating(2)">
+            Echec
+            <span class="btn-key">1</span>
+          </button>
+          <button type="button" class="btn btn-warning" onclick="submitRating(3)">
+            Approximatif
+            <span class="btn-key">2</span>
+          </button>
+          <button type="button" class="btn btn-success" onclick="submitRating(5)">
+            Valide
+            <span class="btn-key">3</span>
+          </button>
+        </div>
+      </form>
+    </div>
+    {% else %}
+    <div class="review-actions">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="show">
+        <button type="submit" class="btn btn-primary btn-lg" id="show-btn" style="width:100%;">
+          Afficher la reponse <span class="btn-key" style="margin-left:0.5rem;">Espace</span>
+        </button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function submitRating(q) {
+  document.getElementById('quality-input').value = q;
+  document.getElementById('rate-form').submit();
+}
+
+document.addEventListener('keydown', function(e) {
+  {% if show_answer %}
+  if (e.key === '1') submitRating(2);
+  if (e.key === '2') submitRating(3);
+  if (e.key === '3') submitRating(5);
+  {% else %}
+  if (e.key === ' ' || e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('show-btn').closest('form').submit();
+  }
+  {% endif %}
+});
+</script>
+{% endblock %}
