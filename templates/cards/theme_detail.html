@@ -23,7 +23,12 @@
     Réviser ({{ due_count }} carte{% if due_count > 1 %}s{% endif %})
   </a>
   {% else %}
-  <span class="text-success">Tout est à jour !</span>
+  <span class="text-success" style="font-size:0.88rem;">Tout est à jour</span>
+  {% endif %}
+  {% if cards %}
+  <a href="{% url 'review_start_theme' theme.id %}?force=1" class="btn btn-outline">
+    Réviser quand même
+  </a>
   {% endif %}
   <a href="{% url 'card_create' theme.id %}" class="btn btn-outline">+ Ajouter une carte</a>
 </div>

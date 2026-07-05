@@ -201,17 +201,22 @@ def card_reset(request, card_id):
 
 def review_start(request, theme_id=None):
     today = datetime.date.today()
+    force = request.GET.get('force') == '1'
+
     if theme_id:
         theme = get_object_or_404(Theme, id=theme_id)
-        cards_qs = Card.objects.filter(theme=theme, due_date__lte=today)
+        cards_qs = theme.cards.all() if force else theme.cards.filter(due_date__lte=today)
     else:
         theme = None
-        cards_qs = Card.objects.filter(due_date__lte=today)
+        cards_qs = Card.objects.all() if force else Card.objects.filter(due_date__lte=today)
 
-    card_ids = list(cards_qs.order_by('?').values_list('id', flat=True))
+    if force:
+        card_ids = list(cards_qs.order_by('due_date').values_list('id', flat=True))
+    else:
+        card_ids = list(cards_qs.order_by('?').values_list('id', flat=True))
 
     if not card_ids:
-        messages.info(request, 'Aucune carte à réviser pour le moment.')
+        messages.info(request, 'Aucune carte dans cette collection.')
         return redirect('theme_detail', theme_id=theme_id) if theme_id else redirect('dashboard')
 
     request.session['review_queue'] = card_ids

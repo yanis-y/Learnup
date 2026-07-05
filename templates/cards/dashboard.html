@@ -22,13 +22,16 @@
   <div class="kpi-card kpi-due">
     <div class="kpi-value {% if total_due > 0 %}text-danger{% else %}text-success{% endif %}">{{ total_due }}</div>
     <div class="kpi-label">A réviser aujourd'hui</div>
-    {% if total_due == 0 %}
-    <div class="kpi-hint text-success">Tout est à jour</div>
-    {% else %}
-    <div class="kpi-hint">
+    <div class="kpi-hint" style="margin-top:0.5rem;display:flex;flex-direction:column;gap:0.4rem;">
+      {% if total_due > 0 %}
       <a href="{% url 'review_start' %}" class="btn btn-primary btn-sm">Réviser maintenant</a>
+      {% else %}
+      <span class="text-success" style="font-size:0.78rem;">Tout est à jour</span>
+      {% endif %}
+      {% if total_cards > 0 %}
+      <a href="{% url 'review_start' %}?force=1" class="btn btn-outline btn-sm">Réviser quand même</a>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 
   <div class="kpi-card kpi-mastered">
@@ -72,22 +75,34 @@
 {% if themes %}
 <div class="theme-grid">
   {% for theme in themes %}
-  <a href="{% url 'theme_detail' theme.id %}" class="theme-card">
-    <div class="theme-card-name">{{ theme.name }}</div>
-
-    <!-- Barre de maîtrise -->
-    <div class="mastery-bar-container">
-      <div class="mastery-bar" style="width: {{ theme.mastery_pct }}%"></div>
-    </div>
-    <div class="mastery-label">
-      <span>{{ theme.mastered }}/{{ theme.total }} maîtrisées ({{ theme.mastery_pct }}%)</span>
+  <div class="theme-card">
+    <a href="{% url 'theme_detail' theme.id %}" class="theme-card-link">
+      <div class="theme-card-name">{{ theme.name }}</div>
+      <div class="mastery-bar-container">
+        <div class="mastery-bar" style="width: {{ theme.mastery_pct }}%"></div>
+      </div>
+      <div class="mastery-label">
+        <span>{{ theme.mastered }}/{{ theme.total }} maîtrisées ({{ theme.mastery_pct }}%)</span>
+        {% if theme.due > 0 %}
+        <span class="due-badge">{{ theme.due }} dues</span>
+        {% else %}
+        <span class="due-badge zero">A jour</span>
+        {% endif %}
+      </div>
+    </a>
+    <div class="theme-card-footer">
       {% if theme.due > 0 %}
-      <span class="due-badge">{{ theme.due }} dues</span>
+      <a href="{% url 'review_start_theme' theme.id %}" class="btn btn-primary btn-sm" style="flex:1;">
+        Réviser ({{ theme.due }})
+      </a>
       {% else %}
-      <span class="due-badge zero">A jour</span>
+      <a href="{% url 'review_start_theme' theme.id %}?force=1" class="btn btn-outline btn-sm" style="flex:1;">
+        Réviser quand même
+      </a>
       {% endif %}
+      <a href="{% url 'theme_detail' theme.id %}" class="btn btn-outline btn-sm">Voir</a>
     </div>
-  </a>
+  </div>
   {% endfor %}
 </div>
 {% else %}
@@ -115,11 +130,9 @@
 
 {% block extra_js %}
 <script>
-// Notification navigateur — demande permission au 1er visit, affiche 1x/jour si cartes dues
 (function() {
   const due = {{ total_due }};
   if (!('Notification' in window)) return;
-
   function maybeNotify() {
     if (Notification.permission !== 'granted' || due === 0) return;
     const key = 'learnup_notif_' + new Date().toISOString().split('T')[0];
@@ -130,12 +143,8 @@
     });
     localStorage.setItem(key, '1');
   }
-
   if (Notification.permission === 'default') {
-    // Demande discrète après 4s
-    setTimeout(() => {
-      Notification.requestPermission().then(maybeNotify);
-    }, 4000);
+    setTimeout(() => Notification.requestPermission().then(maybeNotify), 4000);
   } else {
     maybeNotify();
   }

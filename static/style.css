@@ -284,16 +284,29 @@ textarea { resize: vertical; min-height: 110px; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1.1rem 1.25rem;
-  text-decoration: none;
-  color: inherit;
-  display: block;
+  overflow: hidden;
   transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  display: flex;
+  flex-direction: column;
 }
 .theme-card:hover {
   border-color: var(--primary);
   transform: translateY(-2px);
   box-shadow: 0 0 20px var(--primary-dim);
+}
+.theme-card-link {
+  display: block;
+  padding: 1.1rem 1.25rem 0.85rem;
+  text-decoration: none;
+  color: inherit;
+  flex: 1;
+}
+.theme-card-footer {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
 }
 .theme-card-name  { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; }
 
