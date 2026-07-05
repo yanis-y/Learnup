@@ -184,7 +184,40 @@ textarea { resize: vertical; min-height: 110px; }
 }
 .section-title { font-size: 1.2rem; font-weight: 600; }
 
-/* ── Dashboard stats ─────────────────────────── */
+/* ── KPI row ─────────────────────────────────── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.kpi-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 18px var(--primary-dim);
+}
+.kpi-value {
+  font-size: 2.4rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--primary);
+}
+.kpi-unit { font-size: 1.1rem; font-weight: 400; opacity: 0.6; margin-left: 2px; }
+.kpi-label { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.35rem; }
+.kpi-hint  { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
+.kpi-fire  { color: var(--warning); }
+.kpi-fire-text { color: var(--warning); font-weight: 600; }
+
+/* ── Dashboard stats (legacy compat) ─────────── */
 .dashboard-stats { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
 .stat-card {
   background: var(--surface);
@@ -262,7 +295,32 @@ textarea { resize: vertical; min-height: 110px; }
   transform: translateY(-2px);
   box-shadow: 0 0 20px var(--primary-dim);
 }
-.theme-card-name  { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.6rem; }
+.theme-card-name  { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; }
+
+/* Mastery bar inside theme card */
+.mastery-bar-container {
+  background: var(--surface-3);
+  border-radius: 99px;
+  height: 5px;
+  overflow: hidden;
+  margin-bottom: 0.55rem;
+}
+.mastery-bar {
+  background: linear-gradient(90deg, var(--success), #6ee7b7);
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.6s cubic-bezier(.4,0,.2,1);
+  min-width: 2px;
+}
+.mastery-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
 .theme-card-stats { display: flex; align-items: center; gap: 0.75rem; font-size: 0.8rem; color: var(--text-muted); flex-wrap: wrap; }
 .due-badge {
   display: inline-block;

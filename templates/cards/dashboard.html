@@ -2,28 +2,56 @@
 {% block title %}Tableau de bord — Learnup{% endblock %}
 
 {% block content %}
-<div class="section-header">
-  <h1 class="section-title">Tableau de bord</h1>
-  {% if total_due > 0 %}
-  <a href="{% url 'review_start' %}" class="btn btn-primary">Réviser tout ({{ total_due }})</a>
-  {% endif %}
+
+<!-- KPIs globaux -->
+<div class="kpi-row">
+  <div class="kpi-card kpi-streak">
+    <div class="kpi-value {% if streak >= 7 %}kpi-fire{% endif %}">
+      {{ streak }}<span class="kpi-unit">j</span>
+    </div>
+    <div class="kpi-label">Série en cours</div>
+    {% if streak == 0 %}
+    <div class="kpi-hint">Commencez aujourd'hui !</div>
+    {% elif streak < 7 %}
+    <div class="kpi-hint">{{ 7|add:"-"|add:streak|stringformat:"d" }} jours pour une semaine</div>
+    {% else %}
+    <div class="kpi-hint kpi-fire-text">En feu !</div>
+    {% endif %}
+  </div>
+
+  <div class="kpi-card kpi-due">
+    <div class="kpi-value {% if total_due > 0 %}text-danger{% else %}text-success{% endif %}">{{ total_due }}</div>
+    <div class="kpi-label">A réviser aujourd'hui</div>
+    {% if total_due == 0 %}
+    <div class="kpi-hint text-success">Tout est à jour</div>
+    {% else %}
+    <div class="kpi-hint">
+      <a href="{% url 'review_start' %}" class="btn btn-primary btn-sm">Réviser maintenant</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="kpi-card kpi-mastered">
+    <div class="kpi-value text-success">{{ total_mastered }}</div>
+    <div class="kpi-label">Cartes maîtrisées</div>
+    <div class="kpi-hint">
+      {% if total_cards > 0 %}
+        {{ total_mastered }}/{{ total_cards }}
+        ({% widthratio total_mastered total_cards 100 %}%)
+      {% else %}
+        0 carte au total
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="kpi-card kpi-reviews">
+    <div class="kpi-value">{{ total_reviews }}</div>
+    <div class="kpi-label">Révisions totales</div>
+    <div class="kpi-hint">depuis le début</div>
+  </div>
 </div>
 
-<div class="dashboard-stats">
-  <div class="stat-card">
-    <div class="stat-card-number">{{ total_cards }}</div>
-    <div class="stat-card-label">Cartes au total</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-card-number {% if total_due > 0 %}text-danger{% else %}text-success{% endif %}">{{ total_due }}</div>
-    <div class="stat-card-label">À réviser aujourd'hui</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-card-number">{{ themes|length }}</div>
-    <div class="stat-card-label">Thèmes</div>
-  </div>
-</div>
-
+<!-- Graphique activité -->
 <div class="chart-container">
   <div class="chart-title">Activité — 30 derniers jours</div>
   <div class="chart-bars">
@@ -35,6 +63,7 @@
   </div>
 </div>
 
+<!-- Thèmes -->
 <div class="section-header">
   <h2 class="section-title">Mes thèmes</h2>
   <a href="{% url 'theme_create' %}" class="btn btn-outline">+ Nouveau thème</a>
@@ -45,11 +74,18 @@
   {% for theme in themes %}
   <a href="{% url 'theme_detail' theme.id %}" class="theme-card">
     <div class="theme-card-name">{{ theme.name }}</div>
-    <div class="theme-card-stats">
-      <span>{{ theme.total }} carte{% if theme.total > 1 %}s{% endif %}</span>
-      <span class="due-badge {% if theme.due == 0 %}zero{% endif %}">
-        {{ theme.due }} à réviser
-      </span>
+
+    <!-- Barre de maîtrise -->
+    <div class="mastery-bar-container">
+      <div class="mastery-bar" style="width: {{ theme.mastery_pct }}%"></div>
+    </div>
+    <div class="mastery-label">
+      <span>{{ theme.mastered }}/{{ theme.total }} maîtrisées ({{ theme.mastery_pct }}%)</span>
+      {% if theme.due > 0 %}
+      <span class="due-badge">{{ theme.due }} dues</span>
+      {% else %}
+      <span class="due-badge zero">A jour</span>
+      {% endif %}
     </div>
   </a>
   {% endfor %}
@@ -62,15 +98,47 @@
 </div>
 {% endif %}
 
+<!-- Import -->
 <div class="import-section">
-  <h2 class="section-title" style="margin-bottom:0.75rem;">Importer des données</h2>
+  <h2 class="section-title" style="margin-bottom:0.75rem;font-size:1rem;">Importer des données</h2>
   <form method="post" action="{% url 'import_data' %}" enctype="multipart/form-data" class="import-form">
     {% csrf_token %}
     <input type="file" name="file" accept=".json" required>
     <button type="submit" class="btn btn-outline btn-sm">Importer JSON</button>
   </form>
-  <p class="text-muted" style="font-size:0.8rem;margin-top:0.4rem;">
-    Fichier JSON exporté depuis cette application. Les thèmes existants sont conservés, les cartes sont ajoutées.
+  <p class="text-muted" style="font-size:0.78rem;margin-top:0.4rem;">
+    Fichier JSON exporté depuis Learnup. Les thèmes existants sont conservés.
   </p>
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Notification navigateur — demande permission au 1er visit, affiche 1x/jour si cartes dues
+(function() {
+  const due = {{ total_due }};
+  if (!('Notification' in window)) return;
+
+  function maybeNotify() {
+    if (Notification.permission !== 'granted' || due === 0) return;
+    const key = 'learnup_notif_' + new Date().toISOString().split('T')[0];
+    if (localStorage.getItem(key)) return;
+    new Notification('Learnup', {
+      body: due + ' carte' + (due > 1 ? 's' : '') + ' à réviser aujourd\'hui !',
+      tag: 'learnup-daily',
+    });
+    localStorage.setItem(key, '1');
+  }
+
+  if (Notification.permission === 'default') {
+    // Demande discrète après 4s
+    setTimeout(() => {
+      Notification.requestPermission().then(maybeNotify);
+    }, 4000);
+  } else {
+    maybeNotify();
+  }
+})();
+</script>
 {% endblock %}

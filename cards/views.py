@@ -8,14 +8,33 @@ from django.urls import reverse
 from .models import Theme, Card, ReviewLog
 
 
+def _get_streak():
+    today = datetime.date.today()
+    d = today
+    if not ReviewLog.objects.filter(reviewed_at=today).exists():
+        d = today - datetime.timedelta(days=1)
+    streak = 0
+    while ReviewLog.objects.filter(reviewed_at=d).exists():
+        streak += 1
+        d -= datetime.timedelta(days=1)
+    return streak
+
+
 def dashboard(request):
     today = datetime.date.today()
-    themes = Theme.objects.annotate(
+    themes = list(Theme.objects.annotate(
         total=Count('cards'),
-        due=Count('cards', filter=Q(cards__due_date__lte=today))
-    )
-    total_due = Card.objects.filter(due_date__lte=today).count()
-    total_cards = Card.objects.count()
+        due=Count('cards', filter=Q(cards__due_date__lte=today)),
+        mastered=Count('cards', filter=Q(cards__interval__gte=21)),
+    ))
+    for t in themes:
+        t.mastery_pct = round((t.mastered / t.total * 100) if t.total > 0 else 0)
+
+    total_due      = Card.objects.filter(due_date__lte=today).count()
+    total_cards    = Card.objects.count()
+    total_mastered = Card.objects.filter(interval__gte=21).count()
+    total_reviews  = ReviewLog.objects.count()
+    streak         = _get_streak()
 
     thirty_days_ago = today - datetime.timedelta(days=29)
     logs = (ReviewLog.objects
@@ -24,7 +43,7 @@ def dashboard(request):
             .annotate(count=Count('id')))
     review_counts = {str(log['reviewed_at']): log['count'] for log in logs}
 
-    max_count = max((review_counts.values()), default=1) or 1
+    max_count = max(review_counts.values(), default=1) or 1
     chart_data = []
     for i in range(30):
         d = thirty_days_ago + datetime.timedelta(days=i)
@@ -39,6 +58,9 @@ def dashboard(request):
         'themes': themes,
         'total_due': total_due,
         'total_cards': total_cards,
+        'total_mastered': total_mastered,
+        'total_reviews': total_reviews,
+        'streak': streak,
         'chart_data': chart_data,
         'today': today,
     })
