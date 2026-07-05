@@ -10,11 +10,11 @@
   </div>
 
   <div class="review-card" id="review-card">
-    <div class="review-question">{{ card.question }}</div>
+    <div class="review-question" dir="auto">{{ card.question }}</div>
 
     {% if show_answer %}
     <hr class="review-divider">
-    <div class="review-answer" id="answer-block">{{ card.answer }}</div>
+    <div class="review-answer" id="answer-block" dir="auto">{{ card.answer }}</div>
 
     <div class="review-actions">
       <p class="text-muted" style="font-size:0.8rem;text-align:center;">

@@ -515,6 +515,91 @@ kbd {
 .flex-1  { flex: 1; }
 .mt-2    { margin-top: 1rem; }
 
+/* ── Arabic virtual keyboard ─────────────────── */
+.field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+.field-header label { margin-bottom: 0; }
+
+.btn-ar-toggle {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.btn-ar-toggle.active,
+.btn-ar-toggle:hover {
+  background: var(--primary-dim);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.ar-keyboard {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  direction: rtl;
+}
+.ar-kb-section { margin-bottom: 0.75rem; }
+.ar-kb-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+  direction: ltr;
+}
+.ar-kb-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ar-key {
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 1.05rem;
+  font-family: 'Amiri', 'Noto Naskh Arabic', 'Arabic Typesetting', serif;
+  padding: 0.3rem 0.55rem;
+  cursor: pointer;
+  min-width: 36px;
+  text-align: center;
+  transition: background 0.1s, border-color 0.1s;
+  user-select: none;
+}
+.ar-key:hover   { background: var(--primary-dim); border-color: var(--primary); color: var(--primary); }
+.ar-key:active  { transform: scale(0.93); }
+.ar-key-vowel   { font-size: 1rem; min-width: 42px; color: var(--warning); border-color: rgba(245,158,11,0.3); }
+.ar-key-vowel:hover { background: var(--warning-dim); border-color: var(--warning); color: var(--warning); }
+.ar-key-wide    { flex: 1; font-size: 0.82rem; direction: ltr; min-width: 80px; }
+
+.ar-kb-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 0.5rem;
+  direction: ltr;
+}
+
+/* Texte arabe dans les cartes */
+.review-question[dir="auto"],
+.review-answer[dir="auto"],
+.flash-card-question[dir="auto"],
+.flash-card-answer[dir="auto"] {
+  font-family: 'Amiri', 'Noto Naskh Arabic', 'Arabic Typesetting', serif, -apple-system;
+}
+
 /* ── Scrollbar ───────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }

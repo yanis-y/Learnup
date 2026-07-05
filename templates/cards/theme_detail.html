@@ -33,8 +33,8 @@
   {% for card in cards %}
   <div class="flash-card {% if card.due_date <= today %}flash-card-due{% endif %}">
     <div class="flash-card-content">
-      <div class="flash-card-question">{{ card.question }}</div>
-      <div class="flash-card-answer">{{ card.answer }}</div>
+      <div class="flash-card-question" dir="auto">{{ card.question }}</div>
+      <div class="flash-card-answer" dir="auto">{{ card.answer }}</div>
       <div class="flash-card-meta">
         Prochaine révision : {{ card.due_date }}
         &middot; Répétitions : {{ card.repetitions }}

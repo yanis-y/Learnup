@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{{ title }} — Flashcards{% endblock %}
+{% block title %}{{ title }} — Learnup{% endblock %}
 
 {% block content %}
 <div class="breadcrumb">
@@ -10,21 +10,52 @@
   <span>{{ title }}</span>
 </div>
 
-<div class="card" style="max-width:680px;">
+<div class="card" style="max-width:720px;">
   <h1 class="card-title" style="margin-bottom:1.25rem;">{{ title }}</h1>
   <p class="text-muted" style="margin-bottom:1rem;font-size:0.9rem;">Thème : <strong>{{ theme.name }}</strong></p>
   <form method="post">
     {% csrf_token %}
+
     <div class="form-group">
-      <label for="question">Question</label>
+      <div class="field-header">
+        <label for="question">Question</label>
+        <button type="button" class="btn-ar-toggle" data-target="question">AR</button>
+      </div>
       <textarea id="question" name="question" rows="4" autofocus required
-                placeholder="Entrez la question...">{{ question }}</textarea>
+                dir="auto" placeholder="Entrez la question...">{{ question }}</textarea>
     </div>
+
     <div class="form-group">
-      <label for="answer">Réponse</label>
+      <div class="field-header">
+        <label for="answer">Réponse</label>
+        <button type="button" class="btn-ar-toggle" data-target="answer">AR</button>
+      </div>
       <textarea id="answer" name="answer" rows="4" required
-                placeholder="Entrez la réponse...">{{ answer }}</textarea>
+                dir="auto" placeholder="Entrez la réponse...">{{ answer }}</textarea>
     </div>
+
+    <!-- Clavier arabe virtuel -->
+    <div id="arabic-keyboard" class="ar-keyboard" style="display:none;">
+      <div class="ar-kb-section">
+        <div class="ar-kb-label">Lettres</div>
+        <div class="ar-kb-row" id="ar-row-1"></div>
+        <div class="ar-kb-row" id="ar-row-2"></div>
+        <div class="ar-kb-row" id="ar-row-3"></div>
+      </div>
+      <div class="ar-kb-section">
+        <div class="ar-kb-label">Voyelles (harakat)</div>
+        <div class="ar-kb-row" id="ar-harakat"></div>
+      </div>
+      <div class="ar-kb-section">
+        <div class="ar-kb-label">Spéciaux</div>
+        <div class="ar-kb-row" id="ar-special"></div>
+      </div>
+      <div class="ar-kb-actions">
+        <button type="button" class="ar-key ar-key-wide" id="ar-space">espace</button>
+        <button type="button" class="ar-key ar-key-wide" id="ar-backspace">&#x232B;</button>
+      </div>
+    </div>
+
     <div class="form-actions">
       <button type="submit" class="btn btn-primary">Enregistrer</button>
       {% if not card %}
@@ -34,4 +65,134 @@
     </div>
   </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const rows = [
+    ['ض','ص','ث','ق','ف','غ','ع','ه','خ','ح','ج','د','ذ'],
+    ['ش','س','ي','ب','ل','ا','ت','ن','م','ك','ط','ر'],
+    ['ئ','ء','ؤ','أ','إ','آ','ى','ة','و','ز','ظ','لا'],
+  ];
+  const harakat = [
+    { ch: 'َ', lbl: 'فَ',  title: 'Fatha (a court)' },
+    { ch: 'ُ', lbl: 'فُ',  title: 'Damma (ou court)' },
+    { ch: 'ِ', lbl: 'فِ',  title: 'Kasra (i court)' },
+    { ch: 'ّ', lbl: 'فّ',  title: 'Shadda (doublement)' },
+    { ch: 'ْ', lbl: 'فْ',  title: 'Soukoun (pas de voyelle)' },
+    { ch: 'ً', lbl: 'فً',  title: 'Tanwin fath (an)' },
+    { ch: 'ٌ', lbl: 'فٌ',  title: 'Tanwin damm (on)' },
+    { ch: 'ٍ', lbl: 'فٍ',  title: 'Tanwin kasr (in)' },
+    { ch: 'ٰ', lbl: 'اٰ',   title: 'Alef supra (a long)' },
+  ];
+  const special = [
+    { ch: 'ـ', lbl: 'ـ',   title: 'Tatweel (allongement)' },
+    { ch: '،', lbl: '،',   title: 'Virgule arabe' },
+    { ch: '؛', lbl: '؛',   title: 'Point-virgule arabe' },
+    { ch: '؟', lbl: '؟',   title: 'Point d\'interrogation arabe' },
+    { ch: '٠', lbl: '٠',   title: '0' },
+    { ch: '١', lbl: '١',   title: '1' },
+    { ch: '٢', lbl: '٢',   title: '2' },
+    { ch: '٣', lbl: '٣',   title: '3' },
+    { ch: '٤', lbl: '٤',   title: '4' },
+    { ch: '٥', lbl: '٥',   title: '5' },
+  ];
+
+  let activeField = null;
+
+  // Remplir les rangées de lettres
+  rows.forEach((row, i) => {
+    const el = document.getElementById('ar-row-' + (i + 1));
+    row.forEach(ch => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ar-key';
+      btn.textContent = ch;
+      btn.addEventListener('mousedown', e => { e.preventDefault(); insertAt(activeField, ch); });
+      el.appendChild(btn);
+    });
+  });
+
+  // Harakat
+  const harakatEl = document.getElementById('ar-harakat');
+  harakat.forEach(({ ch, lbl, title }) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ar-key ar-key-vowel';
+    btn.innerHTML = lbl;
+    btn.title = title;
+    btn.addEventListener('mousedown', e => { e.preventDefault(); insertAt(activeField, ch); });
+    harakatEl.appendChild(btn);
+  });
+
+  // Spéciaux
+  const specialEl = document.getElementById('ar-special');
+  special.forEach(({ ch, lbl, title }) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ar-key';
+    btn.textContent = lbl;
+    btn.title = title;
+    btn.addEventListener('mousedown', e => { e.preventDefault(); insertAt(activeField, ch); });
+    specialEl.appendChild(btn);
+  });
+
+  // Espace + backspace
+  document.getElementById('ar-space').addEventListener('mousedown', e => { e.preventDefault(); insertAt(activeField, ' '); });
+  document.getElementById('ar-backspace').addEventListener('mousedown', e => {
+    e.preventDefault();
+    if (!activeField) return;
+    const s = activeField.selectionStart, end = activeField.selectionEnd;
+    if (s === end && s > 0) {
+      // Supprimer le caractère précédent (gère les diacritiques multi-octet)
+      const val = activeField.value;
+      // Reculer sur un point de code (peut être un diacritique de 2 unités UTF-16)
+      let newStart = s - 1;
+      const code = val.codePointAt(newStart - 1);
+      if (code > 0xFFFF) newStart--;
+      activeField.value = val.slice(0, newStart < 0 ? 0 : newStart) + val.slice(s);
+      activeField.selectionStart = activeField.selectionEnd = newStart < 0 ? 0 : newStart;
+    } else if (s !== end) {
+      activeField.value = activeField.value.slice(0, s) + activeField.value.slice(end);
+      activeField.selectionStart = activeField.selectionEnd = s;
+    }
+    activeField.dispatchEvent(new Event('input'));
+  });
+
+  function insertAt(field, ch) {
+    if (!field) return;
+    const s = field.selectionStart, e = field.selectionEnd;
+    field.value = field.value.slice(0, s) + ch + field.value.slice(e);
+    field.selectionStart = field.selectionEnd = s + ch.length;
+    field.focus();
+    field.dispatchEvent(new Event('input'));
+  }
+
+  // Boutons AR toggle
+  document.querySelectorAll('.btn-ar-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.dataset.target;
+      const field = document.getElementById(targetId);
+      const kb = document.getElementById('arabic-keyboard');
+      if (activeField === field && kb.style.display !== 'none') {
+        kb.style.display = 'none';
+        btn.classList.remove('active');
+        activeField = null;
+      } else {
+        document.querySelectorAll('.btn-ar-toggle').forEach(b => b.classList.remove('active'));
+        activeField = field;
+        kb.style.display = 'block';
+        btn.classList.add('active');
+        field.focus();
+      }
+    });
+  });
+
+  // Mémoriser le champ actif au focus
+  document.querySelectorAll('textarea').forEach(ta => {
+    ta.addEventListener('focus', () => { activeField = ta; });
+  });
+})();
+</script>
 {% endblock %}
